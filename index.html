@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTC Clipper Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: radial-gradient(circle at top, #1f2937 0, #020617 55%, #000 100%);
+            min-height: 100vh;
+            padding: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #e5e7eb;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Connector network - very faint background */
+        .connector-network {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .connector-node {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.7), rgba(56, 189, 248, 0.2));
+            box-shadow: 
+                0 0 8px rgba(56, 189, 248, 0.5),
+                0 0 16px rgba(56, 189, 248, 0.3);
+            opacity: 0.55;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .connector-node:hover {
+            opacity: 0.8;
+            transform: translate(-50%, -50%) scale(1.3);
+        }
+
+        .connector-line {
+            position: absolute;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(56, 189, 248, 0.35) 50%, 
+                transparent 100%);
+            transform-origin: left center;
+            opacity: 0.4;
+            pointer-events: none;
+            box-shadow: 0 0 2px rgba(56, 189, 248, 0.3);
+        }
+
+        .connector-line-to-mouse {
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(129, 140, 248, 0.5) 50%, 
+                transparent 100%);
+            opacity: 0.5;
+            box-shadow: 0 0 3px rgba(129, 140, 248, 0.4);
+        }
+
+        /* Enhanced floating blur circles with smooth gradient animations */
+        .bg-orb {
+            position: fixed;
+            width: 420px;
+            height: 420px;
+            border-radius: 999px;
+            filter: blur(90px);
+            opacity: 0.45;
+            z-index: 0;
+            pointer-events: none;
+            animation: floatSmooth 25s ease-in-out infinite alternate;
+        }
+
+        .bg-orb:nth-child(1) {
+            top: -100px;
+            left: -60px;
+            background: radial-gradient(circle, #38bdf8, #0ea5e9, #0284c7);
+            animation: floatSmooth 28s ease-in-out infinite alternate;
+        }
+
+        .bg-orb:nth-child(2) {
+            bottom: -140px;
+            right: -100px;
+            background: radial-gradient(circle, #a855f7, #9333ea, #7e22ce);
+            animation: floatSmooth 32s ease-in-out infinite alternate;
+            animation-delay: 3s;
+        }
+
+        .bg-orb:nth-child(3) {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, #22c55e, #16a34a, #15803d);
+            opacity: 0.25;
+            animation: floatSmooth 30s ease-in-out infinite alternate;
+            animation-delay: 6s;
+        }
+
+        @keyframes floatSmooth {
+            0% {
+                transform: translate3d(0, 0, 0) scale(1);
+                opacity: 0.4;
+            }
+            33% {
+                transform: translate3d(50px, -60px, 0) scale(1.05);
+                opacity: 0.5;
+            }
+            66% {
+                transform: translate3d(-40px, 50px, 0) scale(0.95);
+                opacity: 0.45;
+            }
+            100% {
+                transform: translate3d(60px, -50px, 0) scale(1.1);
+                opacity: 0.5;
+            }
+        }
+
+        /* Additional animated gradient overlay */
+        .bg-gradient-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(56, 189, 248, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(34, 197, 94, 0.05) 0%, transparent 60%);
+            animation: gradientPulse 20s ease-in-out infinite;
+        }
+
+        @keyframes gradientPulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.8;
+                transform: scale(1.05);
+            }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            background: radial-gradient(circle at top left, rgba(148, 163, 184, 0.18), rgba(15, 23, 42, 0.9));
+            border-radius: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            box-shadow:
+                0 18px 60px rgba(0, 0, 0, 0.6),
+                0 0 0 1px rgba(15, 23, 42, 0.9);
+            max-width: 720px;
+            width: 100%;
+            padding: 22px 22px 20px;
+            backdrop-filter: blur(22px) saturate(1.5);
+            -webkit-backdrop-filter: blur(22px) saturate(1.5);
+            animation: cardIn 520ms cubic-bezier(0.23, 1, 0.32, 1);
+            transform-style: preserve-3d;
+            transform: perspective(900px) rotateX(0deg) rotateY(0deg);
+            transition: transform 0.1s ease-out, box-shadow 0.25s ease-out, border-color 0.25s ease-out;
+        }
+
+        @keyframes cardIn {
+            from {
+                opacity: 0;
+                transform: translateY(14px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        h1 {
+            color: #f9fafb;
+            font-size: 1.6rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            letter-spacing: 0.03em;
+        }
+
+        .subtitle {
+            color: #9ca3af;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .tabs {
+            position: relative;
+            display: inline-flex;
+            gap: 6px;
+            margin: 8px 0 12px;
+            padding: 4px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.35);
+            border: 1px solid rgba(148, 163, 184, 0.45);
+            box-shadow:
+                0 0 0 1px rgba(15, 23, 42, 0.9),
+                0 18px 45px rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(24px) saturate(1.8);
+            -webkit-backdrop-filter: blur(24px) saturate(1.8);
+            overflow: hidden;
+            --indicator-x: 0px;
+            --indicator-w: 0px;
+        }
+
+        .tabs::before {
+            content: "";
+            position: absolute;
+            top: 3px;
+            left: var(--indicator-x);
+            width: var(--indicator-w);
+            height: calc(100% - 6px);
+            border-radius: 999px;
+            background:
+                radial-gradient(circle at 8% 0%, rgba(248, 250, 252, 0.9), rgba(248, 250, 252, 0.25)),
+                radial-gradient(circle at 90% 130%, rgba(56, 189, 248, 0.85), rgba(59, 130, 246, 0.55)),
+                radial-gradient(circle at 50% -40%, rgba(255, 255, 255, 0.65), transparent 60%);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.7),
+                0 10px 38px rgba(15, 23, 42, 0.95),
+                0 0 42px rgba(59, 130, 246, 0.85);
+            opacity: 0.98;
+            backdrop-filter: blur(40px) saturate(2.2);
+            -webkit-backdrop-filter: blur(40px) saturate(2.2);
+            transition:
+                width 320ms cubic-bezier(0.22, 0.61, 0.36, 1),
+                left 320ms cubic-bezier(0.22, 0.61, 0.36, 1),
+                opacity 180ms ease-out,
+                transform 220ms ease-out;
+            transform-origin: center;
+            animation: gooPulse 3400ms ease-in-out infinite;
+        }
+
+        @keyframes gooPulse {
+            0% {
+                transform: translateY(0) scaleX(1) scaleY(1);
+                opacity: 0.96;
+            }
+            35% {
+                transform: translateY(-0.5px) scaleX(1.04) scaleY(0.98);
+                opacity: 1;
+            }
+            70% {
+                transform: translateY(0.3px) scaleX(0.98) scaleY(1.03);
+                opacity: 0.97;
+            }
+            100% {
+                transform: translateY(0) scaleX(1) scaleY(1);
+                opacity: 0.96;
+            }
+        }
+
+        .tab {
+            appearance: none;
+            position: relative;
+            border: 0;
+            background: transparent;
+            color: #cbd5f5;
+            padding: 6px 14px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.84rem;
+            letter-spacing: 0.01em;
+            z-index: 1;
+            transition:
+                color 160ms ease,
+                transform 120ms ease,
+                text-shadow 160ms ease;
+        }
+
+        .tab-content {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .currency-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0;
+            box-shadow:
+                0 0 0 1px rgba(15, 23, 42, 0.9),
+                0 0 10px rgba(15, 23, 42, 0.8);
+        }
+
+        .currency-btc {
+            background: radial-gradient(circle at 30% 0%, #fef9c3, #f97316);
+            color: #111827;
+        }
+
+        .currency-eth {
+            background: radial-gradient(circle at 20% 0%, #e0f2fe, #0369a1);
+            color: #0b1120;
+        }
+
+        .currency-ltc {
+            background: radial-gradient(circle at 20% 0%, #f1f5f9, #64748b);
+            color: #020617;
+        }
+
+        .currency-sol {
+            background:
+                linear-gradient(135deg, #22d3ee, #a855f7),
+                radial-gradient(circle at 20% 0%, #e0f2fe, #1e293b);
+            color: #0f172a;
+        }
+
+        .tab:hover {
+            color: #e5e7eb;
+            transform: translateY(-0.5px);
+            text-shadow: 0 0 12px rgba(191, 219, 254, 0.8);
+        }
+
+        .tab[aria-selected="true"] {
+            color: #020617;
+            text-shadow:
+                0 0 10px rgba(191, 219, 254, 0.9),
+                0 0 25px rgba(59, 130, 246, 0.9);
+        }
+
+        .tabpanels {
+            position: relative;
+        }
+
+        .tabpanel {
+            display: none;
+            animation: panelIn 260ms cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .tabpanel.active {
+            display: block;
+        }
+
+        @keyframes panelIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #e5e7eb;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            opacity: 0.9;
+        }
+
+        .wallet-section {
+            padding: 12px 12px 10px;
+            border-radius: 14px;
+            background: radial-gradient(circle at top, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.5));
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.7);
+        }
+
+        .wallet-list {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .wallet-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 6px 6px;
+            border-radius: 10px;
+            transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+        }
+
+        .wallet-row:hover {
+            background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), rgba(15, 23, 42, 0.6));
+            transform: translateY(-1px);
+            box-shadow: 0 10px 22px rgba(15, 23, 42, 0.8);
+        }
+
+        .wallet-label {
+            font-size: 0.78rem;
+            color: #9ca3af;
+            min-width: 120px;
+        }
+
+        .wallet-address {
+            flex: 1;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+            font-size: 0.82rem;
+            padding: 6px 9px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.45);
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.85));
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            color: #e5e7eb;
+            transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease, transform 120ms ease;
+        }
+
+        .wallet-address:hover {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.4), 0 0 24px rgba(56, 189, 248, 0.25);
+            background: linear-gradient(135deg, rgba(15, 23, 42, 1), rgba(15, 23, 42, 0.92));
+            transform: translateY(-0.5px);
+        }
+
+        .wallet-address:focus-visible {
+            outline: 2px solid rgba(56, 189, 248, 0.9);
+            outline-offset: 2px;
+        }
+
+        .copy-btn {
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            padding: 6px 11px;
+            font-size: 0.76rem;
+            background: radial-gradient(circle at top, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.7));
+            cursor: pointer;
+            color: #e5e7eb;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition:
+                background 150ms ease,
+                transform 100ms ease,
+                box-shadow 150ms ease,
+                border-color 150ms ease,
+                color 150ms ease;
+        }
+
+        .copy-btn::before {
+            content: '⧉';
+            font-size: 0.78rem;
+            opacity: 0.9;
+        }
+
+        .copy-btn:hover {
+            background: radial-gradient(circle at top, rgba(37, 99, 235, 0.95), rgba(30, 64, 175, 0.95));
+            border-color: rgba(191, 219, 254, 0.9);
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.55);
+            transform: translateY(-1px);
+        }
+
+        .copy-btn:active {
+            transform: translateY(0) scale(0.97);
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.9);
+        }
+
+        .copy-btn.copied {
+            color: #bbf7d0;
+            border-color: rgba(134, 239, 172, 0.9);
+            background: radial-gradient(circle at top, rgba(22, 163, 74, 0.95), rgba(5, 46, 22, 1));
+            box-shadow: 0 10px 26px rgba(22, 163, 74, 0.55);
+        }
+
+        .clipboard-section {
+            margin-top: 18px;
+            padding: 12px 12px 10px;
+            border-radius: 14px;
+            background: radial-gradient(circle at bottom, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.55));
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.7);
+        }
+
+        .paste-area {
+            width: 100%;
+            min-height: 90px;
+            resize: vertical;
+            padding: 9px 11px;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.9));
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+            font-size: 0.88rem;
+            color: #e5e7eb;
+            transition:
+                border-color 150ms ease,
+                box-shadow 150ms ease,
+                background 150ms ease,
+                transform 120ms ease;
+        }
+
+        .paste-area::placeholder {
+            color: #6b7280;
+        }
+
+        .paste-area:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow:
+                0 0 0 1px rgba(129, 140, 248, 0.8),
+                0 0 32px rgba(79, 70, 229, 0.55);
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.96));
+            transform: translateY(-0.5px);
+        }
+
+        .hint {
+            margin-top: 6px;
+            font-size: 0.76rem;
+            color: #9ca3af;
+        }
+
+        .detector {
+            margin-top: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.78rem;
+            color: #9ca3af;
+        }
+
+        .detector-label {
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 600;
+            font-size: 0.72rem;
+            color: #6b7280;
+        }
+
+        .detector-value {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 9px 3px 4px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            background: radial-gradient(circle at top, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.8));
+            color: #e5e7eb;
+        }
+
+        .detector-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0;
+            box-shadow:
+                0 0 0 1px rgba(15, 23, 42, 0.9),
+                0 0 10px rgba(15, 23, 42, 0.8);
+        }
+
+        .detector-icon-btc {
+            background: radial-gradient(circle at 30% 0%, #fef9c3, #f97316);
+            color: #111827;
+        }
+
+        .detector-icon-eth {
+            background: radial-gradient(circle at 20% 0%, #e0f2fe, #0369a1);
+            color: #0b1120;
+        }
+
+        .detector-icon-ltc {
+            background: radial-gradient(circle at 20% 0%, #f1f5f9, #64748b);
+            color: #020617;
+        }
+
+        .detector-icon-sol {
+            background:
+                linear-gradient(135deg, #22d3ee, #a855f7),
+                radial-gradient(circle at 20% 0%, #e0f2fe, #1e293b);
+            color: #0f172a;
+        }
+
+        .detector-icon-unknown {
+            background: radial-gradient(circle at 20% 0%, #e5e7eb, #4b5563);
+            color: #020617;
+        }
+
+        .footer {
+            margin-top: 14px;
+            font-size: 0.75rem;
+            color: #6b7280;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .footer span:last-child {
+            font-variant-numeric: tabular-nums;
+            opacity: 0.75;
+        }
+
+        /* Floating logging terminal - Liquid Glass Windows Terminal style */
+        .terminal {
+            position: fixed;
+            left: calc(50% + 360px + 3cm);
+            bottom: 24px;
+            width: 400px;
+            max-height: 300px;
+            border-radius: 12px;
+            background: radial-gradient(circle at top left, rgba(15, 23, 42, 0.95), rgba(2, 6, 23, 0.98));
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            box-shadow:
+                0 18px 50px rgba(0, 0, 0, 0.7),
+                0 0 0 1px rgba(15, 23, 42, 0.9),
+                inset 0 1px 1px rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(24px) saturate(1.6);
+            -webkit-backdrop-filter: blur(24px) saturate(1.6);
+            font-family: Consolas, "Cascadia Code", "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1.35;
+            color: #d4d4d4;
+            z-index: 20;
+            overflow: hidden;
+            transform: translate3d(0, 0, 0);
+            transform-origin: center;
+            will-change: transform;
+        }
+
+        .terminal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 32px;
+            padding: 0 12px 0 14px;
+            background: radial-gradient(circle at top left, rgba(15, 23, 42, 0.9), rgba(30, 64, 175, 0.5));
+            border-bottom: 1px solid rgba(148, 163, 184, 0.4);
+            cursor: grab;
+            user-select: none;
+            border-radius: 12px 12px 0 0;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .terminal-header:active {
+            cursor: grabbing;
+        }
+
+        .terminal-title-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #e0e0e0;
+        }
+
+        .terminal-title-bar-icon {
+            width: 16px;
+            height: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #0078d4;
+        }
+
+        .terminal-title-bar-text {
+            font-weight: 400;
+            letter-spacing: 0.02em;
+        }
+
+        .terminal-body {
+            padding: 8px 12px 10px;
+            background: radial-gradient(circle at bottom, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+            border-radius: 0 0 12px 12px;
+        }
+
+        .terminal-log {
+            max-height: 248px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .terminal-log::-webkit-scrollbar {
+            display: none;
+        }
+
+        .log-line {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 2px 0;
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .log-prompt {
+            color: #4ec9b0;
+            flex-shrink: 0;
+        }
+
+        .log-meta {
+            color: #6a6a6a;
+            flex-shrink: 0;
+        }
+
+        .log-type {
+            color: #569cd6;
+            flex-shrink: 0;
+            font-weight: 500;
+        }
+
+        .log-info .log-type { color: #4ec9b0; }
+        .log-key .log-type { color: #c586c0; }
+        .log-clipboard .log-type { color: #4ec9b0; }
+        .log-tab .log-type { color: #dcdcaa; }
+        .log-detector .log-type { color: #ce9178; }
+        .log-system .log-type { color: #6a6a6a; }
+        .log-error .log-type { color: #f48771; }
+
+        .log-text {
+            color: #d4d4d4;
+            min-width: 0;
+        }
+
+        @media (max-width: 1200px) {
+            .terminal {
+                left: auto;
+                right: 18px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 16px;
+            }
+
+            .container {
+                padding: 18px 16px 16px;
+            }
+
+            .wallet-label {
+                min-width: 90px;
+            }
+
+            .tabs {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .terminal {
+                width: calc(100vw - 32px);
+                max-width: 400px;
+                right: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-gradient-overlay"></div>
+    <div class="bg-orb"></div>
+    <div class="bg-orb"></div>
+    <div class="bg-orb"></div>
+
+    <!-- Faint connector network background -->
+    <div class="connector-network" id="connectorNetwork"></div>
+
+    <div class="container">
+        <h1>BTC clipper demo</h1>
+        <p class="subtitle">Tabbed copy/paste demo with placeholder “wallet variants” (not real addresses).</p>
+
+        <div class="tabs" role="tablist" aria-label="Wallet types">
+            <button class="tab" id="tab-bitcoin" role="tab" aria-controls="panel-bitcoin" aria-selected="true" data-tab="bitcoin">
+                <span class="tab-content">
+                    <span class="currency-icon currency-btc">₿</span>
+                    <span>Bitcoin</span>
+                </span>
+            </button>
+            <button class="tab" id="tab-ethereum" role="tab" aria-controls="panel-ethereum" aria-selected="false" data-tab="ethereum">
+                <span class="tab-content">
+                    <span class="currency-icon currency-eth">Ξ</span>
+                    <span>Ethereum</span>
+                </span>
+            </button>
+            <button class="tab" id="tab-litecoin" role="tab" aria-controls="panel-litecoin" aria-selected="false" data-tab="litecoin">
+                <span class="tab-content">
+                    <span class="currency-icon currency-ltc">Ł</span>
+                    <span>Litecoin</span>
+                </span>
+            </button>
+            <button class="tab" id="tab-solana" role="tab" aria-controls="panel-solana" aria-selected="false" data-tab="solana">
+                <span class="tab-content">
+                    <span class="currency-icon currency-sol">S</span>
+                    <span>Solana</span>
+                </span>
+            </button>
+        </div>
+
+        <div class="tabpanels">
+            <div class="tabpanel active" id="panel-bitcoin" role="tabpanel" aria-labelledby="tab-bitcoin" data-panel="bitcoin">
+                <div class="wallet-section">
+                    <div class="section-title">Bitcoin variants (placeholders)</div>
+                    <div class="wallet-list">
+                        <div class="wallet-row">
+                            <div class="wallet-label">Legacy (P2PKH)</div>
+                            <div class="wallet-address" data-address="1Qxt8JvF7bC9K2mPz6Lw4Hd0RnSu3YaB5">1Qxt8JvF7bC9K2mPz6Lw4Hd0RnSu3YaB5</div>
+                            <button class="copy-btn" data-address="1Qxt8JvF7bC9K2mPz6Lw4Hd0RnSu3YaB5">Copy</button>
+                        </div>
+                        <div class="wallet-row">
+                            <div class="wallet-label">P2SH</div>
+                            <div class="wallet-address" data-address="3Hd9LmT2Ps8Rq4Xn7Zv1Cf6Kb0Wy2Gr8E">3Hd9LmT2Ps8Rq4Xn7Zv1Cf6Kb0Wy2Gr8E</div>
+                            <button class="copy-btn" data-address="3Hd9LmT2Ps8Rq4Xn7Zv1Cf6Kb0Wy2Gr8E">Copy</button>
+                        </div>
+                        <div class="wallet-row">
+                            <div class="wallet-label">Bech32 (Segwit)</div>
+                            <div class="wallet-address" data-address="bc1q7n2h5k0w4s9p3xj8d6c2vrlf0uaygzhf0">bc1q7n2h5k0w4s9p3xj8d6c2vrlf0uaygzhf0</div>
+                            <button class="copy-btn" data-address="bc1q7n2h5k0w4s9p3xj8d6c2vrlf0uaygzhf0">Copy</button>
+                        </div>
+                        <div class="wallet-row">
+                            <div class="wallet-label">Taproot (Bech32m)</div>
+                            <div class="wallet-address" data-address="bc1p5x8k3t9w2q7vl4sj0dmn6rfy2h9c0g5qp">bc1p5x8k3t9w2q7vl4sj0dmn6rfy2h9c0g5qp</div>
+                            <button class="copy-btn" data-address="bc1p5x8k3t9w2q7vl4sj0dmn6rfy2h9c0g5qp">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tabpanel" id="panel-ethereum" role="tabpanel" aria-labelledby="tab-ethereum" data-panel="ethereum">
+                <div class="wallet-section">
+                    <div class="section-title">Ethereum variants (placeholders)</div>
+                    <div class="wallet-list">
+                        <div class="wallet-row">
+                            <div class="wallet-label">EOA</div>
+                            <div class="wallet-address" data-address="0x8a47cF19b72e4D901cAb6F21E9b317a4C5B2e1A9">0x8a47cF19b72e4D901cAb6F21E9b317a4C5B2e1A9</div>
+                            <button class="copy-btn" data-address="0x8a47cF19b72e4D901cAb6F21E9b317a4C5B2e1A9">Copy</button>
+                        </div>
+                        <div class="wallet-row">
+                            <div class="wallet-label">Contract</div>
+                            <div class="wallet-address" data-address="0x4f92aD57c03D8cA7e1F2cB89D30469e7B0c3De02">0x4f92aD57c03D8cA7e1F2cB89D30469e7B0c3De02</div>
+                            <button class="copy-btn" data-address="0x4f92aD57c03D8cA7e1F2cB89D30469e7B0c3De02">Copy</button>
+                        </div>
+                        <div class="wallet-row">
+                            <div class="wallet-label">ENS</div>
+                            <div class="wallet-address" data-address="0x7eF3c8d92bA1F4bE9A6c3F5B8aE27c90C4D19E03">0x7eF3c8d92bA1F4bE9A6c3F5B8aE27c90C4D19E03</div>
+                            <button class="copy-btn" data-address="0x7eF3c8d92bA1F4bE9A6c3F5B8aE27c90C4D19E03">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tabpanel" id="panel-litecoin" role="tabpanel" aria-labelledby="tab-litecoin" data-panel="litecoin">
+                <div class="wallet-section">
+                    <div class="section-title">Litecoin variants (placeholders)</div>
+                    <div class="wallet-list">
+                        <div class="wallet-row">
+                            <div class="wallet-label">Legacy</div>
+                            <div class="wallet-address" data-address="LVt9Qm5s7K2c4Pz8H1f6Wd3Xb0Rj9Nu5E">LVt9Qm5s7K2c4Pz8H1f6Wd3Xb0Rj9Nu5E</div>
+                            <button class="copy-btn" data-address="LVt9Qm5s7K2c4Pz8H1f6Wd3Xb0Rj9Nu5E">Copy</button>
+                        </div>
+                        <div class="wallet-row">
+                            <div class="wallet-label">P2SH</div>
+                            <div class="wallet-address" data-address="3Lx7Hd9Vm2K4Pa8Rs1Qf6Zc0Wn5Tj3Yu9">3Lx7Hd9Vm2K4Pa8Rs1Qf6Zc0Wn5Tj3Yu9</div>
+                            <button class="copy-btn" data-address="3Lx7Hd9Vm2K4Pa8Rs1Qf6Zc0Wn5Tj3Yu9">Copy</button>
+                        </div>
+                        <div class="wallet-row">
+                            <div class="wallet-label">Bech32</div>
+                            <div class="wallet-address" data-address="ltc1q7h2w5p0d4s9k3xj8v6c2nrfy0ua3gze9">ltc1q7h2w5p0d4s9k3xj8v6c2nrfy0ua3gze9</div>
+                            <button class="copy-btn" data-address="ltc1q7h2w5p0d4s9k3xj8v6c2nrfy0ua3gze9">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tabpanel" id="panel-solana" role="tabpanel" aria-labelledby="tab-solana" data-panel="solana">
+                <div class="wallet-section">
+                    <div class="section-title">Solana variants (placeholders)</div>
+                    <div class="wallet-list">
+                        <div class="wallet-row">
+                            <div class="wallet-label">Base58 pubkey</div>
+                            <div class="wallet-address" data-address="9xU3nKf7H2sQ4pV8D1wL6cR0Ya3Bz5Tm7Pe4dF9">9xU3nKf7H2sQ4pV8D1wL6cR0Ya3Bz5Tm7Pe4dF9</div>
+                            <button class="copy-btn" data-address="9xU3nKf7H2sQ4pV8D1wL6cR0Ya3Bz5Tm7Pe4dF9">Copy</button>
+                        </div>
+                        <div class="wallet-row">
+                            <div class="wallet-label">Associated token</div>
+                            <div class="wallet-address" data-address="4sP7dLf1V9hQ3cX6A2zK8mR0Te5Yu9Wn3Hv2gD7">4sP7dLf1V9hQ3cX6A2zK8mR0Te5Yu9Wn3Hv2gD7</div>
+                            <button class="copy-btn" data-address="4sP7dLf1V9hQ3cX6A2zK8mR0Te5Yu9Wn3Hv2gD7">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="clipboard-section">
+            <div class="section-title">Paste area</div>
+            <textarea class="paste-area" placeholder="Paste here (Ctrl+V) to see what ends up in your clipboard..."></textarea>
+            <div class="hint">Use this box to quickly test your clipboard behavior.</div>
+            <div class="detector">
+                <span class="detector-label">Detected</span>
+                <span class="detector-value" id="detectorValue">
+                    <span class="detector-icon detector-icon-unknown" id="detectorIcon">?</span>
+                    <span id="detectorText">None</span>
+                </span>
+            </div>
+        </div>
+
+        <div class="footer">
+            <span>Glass dark BTC clipboard demo</span>
+            <span>⏱ Live paste tester</span>
+        </div>
+    </div>
+
+    <!-- Floating logging terminal (Windows Terminal / CMD style) -->
+    <div class="terminal" id="floatingTerminal">
+        <div class="terminal-header" id="terminalHeader">
+            <div class="terminal-title-bar">
+                <span class="terminal-title-bar-icon" aria-hidden="true">&gt;_</span>
+                <span class="terminal-title-bar-text">Command Prompt - Session log</span>
+            </div>
+        </div>
+        <div class="terminal-body">
+            <div class="terminal-log" id="terminalLog"></div>
+        </div>
+    </div>
+
+    <script>
+        function logToTerminal(type, message) {
+            const logRoot = document.getElementById('terminalLog');
+            if (!logRoot) return;
+
+            const now = new Date();
+            const ts = now.toLocaleTimeString([], { hour12: false });
+
+            const line = document.createElement('div');
+            line.className = 'log-line log-' + type;
+
+            const promptSpan = document.createElement('span');
+            promptSpan.className = 'log-prompt';
+            promptSpan.textContent = 'C:\\> ';
+
+            const metaSpan = document.createElement('span');
+            metaSpan.className = 'log-meta';
+            metaSpan.textContent = '[' + ts + '] ';
+
+            const typeSpan = document.createElement('span');
+            typeSpan.className = 'log-type';
+            typeSpan.textContent = type + ' ';
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'log-text';
+            textSpan.textContent = message;
+
+            line.appendChild(promptSpan);
+            line.appendChild(metaSpan);
+            line.appendChild(typeSpan);
+            line.appendChild(textSpan);
+            logRoot.appendChild(line);
+
+            const maxLines = 200;
+            while (logRoot.children.length > maxLines) {
+                logRoot.removeChild(logRoot.firstChild);
+            }
+
+            logRoot.scrollTop = logRoot.scrollHeight;
+        }
+
+        function copyAddress(address, button) {
+            navigator.clipboard.writeText(address).then(function () {
+                if (button) {
+                    const original = button.textContent;
+                    button.textContent = 'Copied';
+                    button.classList.add('copied');
+                    setTimeout(function () {
+                        button.textContent = original;
+                        button.classList.remove('copied');
+                    }, 1500);
+                }
+            }).catch(function () {
+                const area = document.createElement('textarea');
+                area.value = address;
+                area.style.position = 'fixed';
+                area.style.opacity = '0';
+                document.body.appendChild(area);
+                area.select();
+                try {
+                    document.execCommand('copy');
+                    if (button) {
+                        const original = button.textContent;
+                        button.textContent = 'Copied';
+                        button.classList.add('copied');
+                        setTimeout(function () {
+                            button.textContent = original;
+                            button.classList.remove('copied');
+                        }, 1500);
+                    }
+                } finally {
+                    document.body.removeChild(area);
+                }
+            });
+
+            const preview = address.length > 16 ? address.slice(0, 12) + '…' + address.slice(-4) : address;
+            logToTerminal('clipboard', 'Copied address "' + preview + '"');
+        }
+
+        function updateTabIndicator(tabName) {
+            const tabs = document.querySelector('.tabs');
+            if (!tabs) return;
+
+            const active = document.querySelector('.tab[aria-selected="true"]');
+            const target = tabName
+                ? document.querySelector('.tab[data-tab="' + tabName + '"]')
+                : active;
+
+            const tabEl = target || active;
+            if (!tabEl) return;
+
+            const tabsRect = tabs.getBoundingClientRect();
+            const tabRect = tabEl.getBoundingClientRect();
+            const x = tabRect.left - tabsRect.left;
+            const w = tabRect.width;
+
+            tabs.style.setProperty('--indicator-x', x + 'px');
+            tabs.style.setProperty('--indicator-w', w + 'px');
+        }
+
+        function setActiveTab(tabName) {
+            document.querySelectorAll('.tab').forEach(function (tab) {
+                const selected = tab.getAttribute('data-tab') === tabName;
+                tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+            });
+
+            document.querySelectorAll('.tabpanel').forEach(function (panel) {
+                panel.classList.toggle('active', panel.getAttribute('data-panel') === tabName);
+            });
+
+            updateTabIndicator(tabName);
+        }
+
+        // Tabs
+        document.querySelectorAll('.tab').forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                const name = this.getAttribute('data-tab');
+                setActiveTab(name);
+                logToTerminal('tab', 'Switched to tab "' + name + '"');
+            });
+        });
+
+        // Initialize indicator once layout is ready
+        window.addEventListener('load', function () {
+            updateTabIndicator();
+            logToTerminal('system', 'UI loaded');
+        });
+
+        // Simple detector for pasted value type
+        function detectWalletType(text) {
+            if (!text) return { label: 'None', icon: '?', cls: 'detector-icon-unknown' };
+            const value = text.trim();
+            if (!value) return { label: 'None', icon: '?', cls: 'detector-icon-unknown' };
+
+            // Bitcoin patterns
+            const btcLegacy = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/;
+            const btcBech32 = /^bc1[0-9a-z]{11,71}$/;
+
+            // Ethereum patterns
+            const ethAddr = /^0x[a-fA-F0-9]{40}$/;
+            const ensName = /^[a-z0-9-]{3,}\.[a-z]{2,}$/i;
+
+            // Litecoin patterns
+            const ltcLegacy = /^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$/;
+            const ltcBech32 = /^ltc1[0-9a-z]{11,71}$/;
+
+            // Solana-style base58 (rough)
+            const solBase58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+            if (btcLegacy.test(value)) return { label: 'Bitcoin (legacy/P2PKH or P2SH)', icon: '₿', cls: 'detector-icon-btc' };
+            if (btcBech32.test(value)) return { label: 'Bitcoin (Bech32 / Segwit)', icon: '₿', cls: 'detector-icon-btc' };
+            if (ethAddr.test(value)) return { label: 'Ethereum (address)', icon: 'Ξ', cls: 'detector-icon-eth' };
+            if (ensName.test(value)) return { label: 'Ethereum (name / ENS-style)', icon: 'Ξ', cls: 'detector-icon-eth' };
+            if (ltcLegacy.test(value)) return { label: 'Litecoin (legacy/P2SH)', icon: 'Ł', cls: 'detector-icon-ltc' };
+            if (ltcBech32.test(value)) return { label: 'Litecoin (Bech32)', icon: 'Ł', cls: 'detector-icon-ltc' };
+            if (solBase58.test(value)) return { label: 'Solana-style (base58 key)', icon: 'S', cls: 'detector-icon-sol' };
+
+            return { label: 'Unknown / not recognized', icon: '?', cls: 'detector-icon-unknown' };
+        }
+
+        (function attachDetector() {
+            const textarea = document.querySelector('.paste-area');
+            const valueChip = document.getElementById('detectorValue');
+            const iconEl = document.getElementById('detectorIcon');
+            const textEl = document.getElementById('detectorText');
+            if (!textarea || !valueChip || !iconEl || !textEl) return;
+
+            let lastLabel = 'None';
+
+            const update = function () {
+                const res = detectWalletType(textarea.value);
+                textEl.textContent = res.label;
+                iconEl.textContent = res.icon;
+
+                iconEl.className = 'detector-icon ' + res.cls;
+                if (res.label !== lastLabel) {
+                    // Short summary for terminal log
+                    let shortLabel = res.label;
+                    if (res.label.includes('Bitcoin (legacy')) shortLabel = 'BTC Legacy';
+                    else if (res.label.includes('Bitcoin (Bech32')) shortLabel = 'BTC Bech32';
+                    else if (res.label.includes('Ethereum (address)')) shortLabel = 'ETH Address';
+                    else if (res.label.includes('Ethereum (name')) shortLabel = 'ETH ENS';
+                    else if (res.label.includes('Litecoin (legacy')) shortLabel = 'LTC Legacy';
+                    else if (res.label.includes('Litecoin (Bech32)')) shortLabel = 'LTC Bech32';
+                    else if (res.label.includes('Solana-style')) shortLabel = 'SOL Base58';
+                    else if (res.label === 'None') shortLabel = 'None';
+                    else if (res.label.includes('Unknown')) shortLabel = 'Unknown';
+                    logToTerminal('detector', shortLabel);
+                    lastLabel = res.label;
+                }
+            };
+
+            textarea.addEventListener('input', update);
+            textarea.addEventListener('paste', function () {
+                setTimeout(update, 0);
+            });
+            textarea.addEventListener('change', update);
+        })();
+
+        // Global key logging within the page
+        document.addEventListener('keydown', function (e) {
+            const parts = [];
+            if (e.ctrlKey) parts.push('Ctrl');
+            if (e.altKey) parts.push('Alt');
+            if (e.shiftKey) parts.push('Shift');
+            if (e.metaKey) parts.push('Meta');
+            parts.push(e.key);
+            logToTerminal('key', 'Keydown: ' + parts.join('+'));
+        });
+
+        // Event delegation for copy/click inside panels
+        document.addEventListener('click', function (e) {
+            const addrEl = e.target.closest('.wallet-address');
+            if (addrEl && addrEl.getAttribute('data-address')) {
+                copyAddress(addrEl.getAttribute('data-address'));
+                return;
+            }
+
+            const btn = e.target.closest('.copy-btn');
+            if (btn && btn.getAttribute('data-address')) {
+                copyAddress(btn.getAttribute('data-address'), btn);
+            }
+        });
+
+        // Smooth 3D card tilt (RAF + lerp for 60fps, no lag)
+        (function () {
+            const card = document.querySelector('.container');
+            if (!card) return;
+
+            const maxTilt = 1.5;
+            const lerp = 0.12; // smooth follow (lower = smoother, higher = snappier)
+            let targetRotX = 0;
+            let targetRotY = 0;
+            let currentRotX = 0;
+            let currentRotY = 0;
+            let mouseX = 0;
+            let mouseY = 0;
+            let isInside = false;
+            let rafId = null;
+            let rect = { left: 0, top: 0, width: 0, height: 0 };
+
+            function updateRect() {
+                rect = card.getBoundingClientRect();
+            }
+
+            function tick() {
+                if (isInside) {
+                    const cx = rect.left + rect.width / 2;
+                    const cy = rect.top + rect.height / 2;
+                    const dx = mouseX - cx;
+                    const dy = mouseY - cy;
+                    targetRotX = -(dy / (rect.height / 2)) * maxTilt;
+                    targetRotY = (dx / (rect.width / 2)) * maxTilt;
+                } else {
+                    targetRotX = 0;
+                    targetRotY = 0;
+                }
+                currentRotX += (targetRotX - currentRotX) * lerp;
+                currentRotY += (targetRotY - currentRotY) * lerp;
+                card.style.transform =
+                    'perspective(900px) rotateX(' + currentRotX.toFixed(3) + 'deg) rotateY(' + currentRotY.toFixed(3) + 'deg)';
+                rafId = requestAnimationFrame(tick);
+            }
+
+            card.addEventListener('mouseenter', function () {
+                isInside = true;
+                updateRect();
+                if (!rafId) rafId = requestAnimationFrame(tick);
+            });
+
+            card.addEventListener('mousemove', function (e) {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+
+            card.addEventListener('mouseleave', function () {
+                isInside = false;
+                card.style.transition = 'transform 0.4s cubic-bezier(0.33, 1, 0.68, 1)';
+                card.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg)';
+                currentRotX = 0;
+                currentRotY = 0;
+                targetRotX = 0;
+                targetRotY = 0;
+                setTimeout(function () {
+                    card.style.transition = '';
+                    if (rafId) cancelAnimationFrame(rafId);
+                    rafId = null;
+                }, 400);
+            });
+
+            window.addEventListener('resize', function () {
+                if (isInside) updateRect();
+            });
+
+            updateRect();
+        })();
+
+        // Precise draggable terminal with liquid glass wiggle physics
+        (function () {
+            const terminal = document.getElementById('floatingTerminal');
+            const header = document.getElementById('terminalHeader');
+            if (!terminal || !header) return;
+
+            let isDragging = false;
+            let dragOffsetX = 0; // Mouse offset from terminal top-left when drag started
+            let dragOffsetY = 0;
+            let vx = 0;
+            let vy = 0;
+            let offsetX = 0;
+            let offsetY = 0;
+            let lastMouseX = 0;
+            let lastMouseY = 0;
+            let animationFrameId = null;
+            let baseLeft = 0;
+            let baseTop = 0;
+
+            // Get terminal's current screen position
+            function getTerminalPosition() {
+                const rect = terminal.getBoundingClientRect();
+                return {
+                    left: rect.left,
+                    top: rect.top,
+                    width: rect.width,
+                    height: rect.height
+                };
+            }
+
+            // Calculate bounds in screen coordinates
+            function getScreenBounds() {
+                const padding = 8;
+                return {
+                    minX: padding,
+                    maxX: window.innerWidth - padding,
+                    minY: padding,
+                    maxY: window.innerHeight - padding
+                };
+            }
+
+            // Calculate exact position from mouse coordinates
+            function updatePositionFromMouse(mouseX, mouseY) {
+                const bounds = getScreenBounds();
+                const pos = getTerminalPosition();
+                const width = pos.width;
+                const height = pos.height;
+
+                // Calculate target position: mouse position minus the drag offset
+                let targetX = mouseX - dragOffsetX;
+                let targetY = mouseY - dragOffsetY;
+
+                // Clamp to screen bounds
+                targetX = Math.max(bounds.minX, Math.min(bounds.maxX - width, targetX));
+                targetY = Math.max(bounds.minY, Math.min(bounds.maxY - height, targetY));
+
+                // Convert to transform offset relative to base position
+                offsetX = targetX - baseLeft;
+                offsetY = targetY - baseTop;
+            }
+
+            // Liquid glass wiggle effect with smooth rotation
+            function applyLiquidTransform() {
+                if (!isDragging && Math.abs(vx) < 0.1 && Math.abs(vy) < 0.1) {
+                    // Gentle idle wobble
+                    const time = Date.now() * 0.001;
+                    const wobbleX = Math.sin(time * 0.8) * 0.5;
+                    const wobbleY = Math.cos(time * 0.6) * 0.5;
+                    const wobbleRot = Math.sin(time * 0.5) * 0.3;
+                    
+                    terminal.style.transform = 
+                        'translate3d(' + (offsetX + wobbleX) + 'px,' + (offsetY + wobbleY) + 'px,0) ' +
+                        'rotate(' + wobbleRot.toFixed(2) + 'deg)';
+                    return;
+                }
+
+                // Dynamic rotation based on velocity (liquid flow effect)
+                const speed = Math.sqrt(vx * vx + vy * vy);
+                const maxRot = 6;
+                const rotFactor = Math.min(speed * 0.15, maxRot);
+                const angle = Math.atan2(vy, vx) * (180 / Math.PI) - 90;
+                const rotation = Math.sin(angle * Math.PI / 180) * rotFactor;
+
+                // Smooth liquid motion with slight overshoot
+                const liquidX = offsetX + (vx * 0.1);
+                const liquidY = offsetY + (vy * 0.1);
+
+                terminal.style.transform = 
+                    'translate3d(' + liquidX.toFixed(2) + 'px,' + liquidY.toFixed(2) + 'px,0) ' +
+                    'rotate(' + rotation.toFixed(2) + 'deg)';
+            }
+
+            function startInertia() {
+                function step() {
+                    if (isDragging) return;
+
+                    // Update position with velocity
+                    offsetX += vx;
+                    offsetY += vy;
+
+                    // Check bounds and bounce using screen coordinates
+                    const currentScreenX = baseLeft + offsetX;
+                    const currentScreenY = baseTop + offsetY;
+                    const pos = getTerminalPosition();
+                    const bounds = getScreenBounds();
+
+                    if (currentScreenX < bounds.minX) {
+                        offsetX = bounds.minX - baseLeft;
+                        vx *= -0.65;
+                    } else if (currentScreenX + pos.width > bounds.maxX) {
+                        offsetX = bounds.maxX - pos.width - baseLeft;
+                        vx *= -0.65;
+                    }
+
+                    if (currentScreenY < bounds.minY) {
+                        offsetY = bounds.minY - baseTop;
+                        vy *= -0.65;
+                    } else if (currentScreenY + pos.height > bounds.maxY) {
+                        offsetY = bounds.maxY - pos.height - baseTop;
+                        vy *= -0.65;
+                    }
+
+                    // Friction (liquid damping)
+                    vx *= 0.93;
+                    vy *= 0.93;
+
+                    applyLiquidTransform();
+
+                    if (Math.abs(vx) < 0.1 && Math.abs(vy) < 0.1) {
+                        vx = 0;
+                        vy = 0;
+                        animationFrameId = null;
+                        return;
+                    }
+                    animationFrameId = requestAnimationFrame(step);
+                }
+                animationFrameId = requestAnimationFrame(step);
+            }
+
+            header.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                isDragging = true;
+                
+                // Get terminal's current screen position
+                const rect = terminal.getBoundingClientRect();
+                
+                // Calculate mouse offset from terminal's top-left corner
+                dragOffsetX = e.clientX - rect.left;
+                dragOffsetY = e.clientY - rect.top;
+                
+                // Store base position (CSS position before transform)
+                const computedStyle = window.getComputedStyle(terminal);
+                baseLeft = parseFloat(computedStyle.left) || rect.left;
+                const cssBottom = parseFloat(computedStyle.bottom) || 0;
+                baseTop = window.innerHeight - cssBottom - rect.height;
+
+                // Cancel any ongoing animation
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+
+                terminal.style.transition = 'none';
+                vx = 0;
+                vy = 0;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                logToTerminal('system', 'Terminal drag start');
+            });
+
+            document.addEventListener('mousemove', function (e) {
+                if (!isDragging) return;
+
+                // Update position exactly where mouse is (maintaining drag offset)
+                updatePositionFromMouse(e.clientX, e.clientY);
+                
+                // Calculate velocity for liquid wiggle effect
+                const deltaX = e.clientX - lastMouseX;
+                const deltaY = e.clientY - lastMouseY;
+                vx = deltaX * 0.85;
+                vy = deltaY * 0.85;
+
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+
+                applyLiquidTransform();
+            });
+
+            document.addEventListener('mouseup', function () {
+                if (!isDragging) return;
+                isDragging = false;
+                terminal.style.transition = 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)';
+                logToTerminal('system', 'Terminal drag end');
+                startInertia();
+            });
+
+            // Initialize idle animation
+            function idleAnimation() {
+                if (!isDragging && animationFrameId === null) {
+                    applyLiquidTransform();
+                }
+                requestAnimationFrame(idleAnimation);
+            }
+            idleAnimation();
+        })();
+
+        // Faint connector network with mouse snapping
+        (function () {
+            const network = document.getElementById('connectorNetwork');
+            if (!network) return;
+
+            const nodeCount = 25;
+            const connectionDistance = 180;
+            const mouseConnectionDistance = 220;
+            const nodes = [];
+            let mouseX = window.innerWidth / 2;
+            let mouseY = window.innerHeight / 2;
+            let animationFrameId = null;
+
+            // Create nodes
+            for (let i = 0; i < nodeCount; i++) {
+                const node = document.createElement('div');
+                node.className = 'connector-node';
+                network.appendChild(node);
+
+                nodes.push({
+                    element: node,
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight,
+                    vx: (Math.random() - 0.5) * 0.3,
+                    vy: (Math.random() - 0.5) * 0.3,
+                    radius: 2 + Math.random() * 2
+                });
+            }
+
+            // Track mouse position
+            document.addEventListener('mousemove', function (e) {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+
+            // Remove existing lines
+            function clearLines() {
+                const lines = network.querySelectorAll('.connector-line');
+                lines.forEach(line => line.remove());
+            }
+
+            // Draw line between two points with dynamic opacity
+            function drawLine(x1, y1, x2, y2, isMouseLine = false, opacity = 1) {
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+                const line = document.createElement('div');
+                line.className = 'connector-line' + (isMouseLine ? ' connector-line-to-mouse' : '');
+                line.style.left = x1 + 'px';
+                line.style.top = y1 + 'px';
+                line.style.width = distance + 'px';
+                line.style.transform = 'rotate(' + angle + 'deg)';
+                line.style.opacity = opacity;
+                network.appendChild(line);
+            }
+
+            // Animate network
+            function animate() {
+                clearLines();
+
+                // Update node positions
+                nodes.forEach(node => {
+                    node.x += node.vx;
+                    node.y += node.vy;
+
+                    // Bounce off edges
+                    if (node.x < 0 || node.x > window.innerWidth) {
+                        node.vx *= -1;
+                        node.x = Math.max(0, Math.min(window.innerWidth, node.x));
+                    }
+                    if (node.y < 0 || node.y > window.innerHeight) {
+                        node.vy *= -1;
+                        node.y = Math.max(0, Math.min(window.innerHeight, node.y));
+                    }
+
+                    // Gentle mouse repulsion
+                    const dx = mouseX - node.x;
+                    const dy = mouseY - node.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150 && dist > 0) {
+                        const force = (150 - dist) / 150 * 0.02;
+                        node.vx -= (dx / dist) * force;
+                        node.vy -= (dy / dist) * force;
+                    }
+
+                    // Apply position
+                    node.element.style.left = node.x + 'px';
+                    node.element.style.top = node.y + 'px';
+                });
+
+                // Draw connections between nearby nodes with distance-based opacity
+                for (let i = 0; i < nodes.length; i++) {
+                    for (let j = i + 1; j < nodes.length; j++) {
+                        const dx = nodes[i].x - nodes[j].x;
+                        const dy = nodes[i].y - nodes[j].y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        if (dist < connectionDistance) {
+                            const opacity = (1 - dist / connectionDistance) * 0.6;
+                            drawLine(nodes[i].x, nodes[i].y, nodes[j].x, nodes[j].y, false, opacity);
+                        }
+                    }
+                }
+
+                // Draw lines from nodes to mouse with distance-based opacity
+                nodes.forEach(node => {
+                    const dx = mouseX - node.x;
+                    const dy = mouseY - node.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < mouseConnectionDistance) {
+                        const opacity = (1 - dist / mouseConnectionDistance) * 0.7;
+                        drawLine(node.x, node.y, mouseX, mouseY, true, opacity);
+                    }
+                });
+
+                animationFrameId = requestAnimationFrame(animate);
+            }
+
+            // Handle window resize
+            window.addEventListener('resize', function () {
+                nodes.forEach(node => {
+                    if (node.x > window.innerWidth) node.x = window.innerWidth;
+                    if (node.y > window.innerHeight) node.y = window.innerHeight;
+                });
+            });
+
+            // Start animation
+            animate();
+        })();
+    </script>
+</body>
+</html>
