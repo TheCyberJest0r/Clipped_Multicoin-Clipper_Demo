@@ -1,4 +1,4 @@
-# clipped /̵͇̿̿/’̿’̿ ̿̿ 📋 (Multi‑Crypto Clipper)
+# clipped /̵͇̿̿/’̿’̿ ̿ ̿̿ ̿̿ ̿̿ 📋 (Multi‑Crypto Clipper)
 
 [![Target: .NET 4.0](https://img.shields.io/badge/.NET-4.0-blue)](https://learn.microsoft.com/dotnet/framework/)
 [![Multi‑Crypto](https://img.shields.io/badge/crypto-20%2b_types-purple)](#supported-cryptocurrencies)
